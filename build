@@ -1,3 +1,8 @@
 rm primes;
 gcc -std=gnu99 -Wpedantic -Ofast -march=native primes.c -o primes -lm;
 chmod 777 primes;
+
+rm profile;
+gcc -std=gnu99 -Wpedantic -march=native profile.c -o profile;
+chmod 777 profile;
+
