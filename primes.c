@@ -13,6 +13,10 @@
 [1] Variations using double precision floating-point instead of uint64_t integers -- see profile.c
     for summary results, but double multiplication and division have very comparable operation rates
     to uint64_t division
+[2] "Faster" integer square root algorithms for early termination checks -- casts to floating-point,
+    hardware square root, ceiling, and cast back to integer is still 2x faster than Warren's Figure
+    11-1 algorithm with excellent starting guesses based on the previous monotonic square root
+    calculated
 */
 
 /**************************************************************************************************/
@@ -30,15 +34,14 @@ void algo0(uint32_t num, uint64_t* primes)
   primes[1] = 3ul;
 
   // find the rest
-  uint64_t val = 4ul;
-
   uint32_t n = 2;
+  uint64_t val = 4ul;
   while (n < num)
   {
     comp = false;
     for (m = 0; m < n; ++m)
     {
-      if ((val % primes[m]) == 0ul)
+      if (0ul == (val % primes[m]))
       {
         comp = true;
         break;
@@ -65,28 +68,26 @@ void algo1(uint32_t num, uint64_t* primes)
   // variables
   bool comp;
   uint32_t m;
+  uint64_t root;
 
   // initialize first two primes
   primes[0] = 2ul;
   primes[1] = 3ul;
 
   // find the rest
-  uint64_t val = 5ul;
-  uint64_t root;
-
   uint32_t n = 2;
+  uint64_t val = 5ul;
   while (n < num)
   {
     comp = false;
     root = (uint64_t) ceil(sqrt((double) val));
     //printf("val: %ld, root: %ld\n", val, root);
-
-    for (m = 1; m < n; ++m)  // skip checking 2
-    {     
+    for (m = 1; m < n; ++m)  // skip checking 2 since all evens are skipped
+    {
       if (primes[m] > root)  // early termination
         break;
       else
-        if ((val % primes[m]) == 0ul)
+        if (0ul == (val % primes[m]))
         {
           comp = true;
           break;
@@ -211,6 +212,71 @@ void algo3(uint32_t num, uint64_t* primes)
 
 /**************************************************************************************************/
 
+inline uint8_t getBit(uint8_t* mem, uint64_t addr)
+{
+  return(mem[addr >> 3] & (addr & 0x03));
+}
+
+inline void setBit(uint8_t* mem, uint64_t addr)
+{
+  mem[addr >> 3] |= 1 << (addr & 0x03);
+  return;
+}
+
+void algo4(uint32_t num, uint64_t* primes)
+{
+  printf("ALGORITHM 4: half Sieve of Eratosthenes with bit field memory\n");
+
+  // determine the sieve size and allocate the array
+  // RESUME HERE
+  const double dblNum = (double) num;
+  const uint32_t sieveSize = (uint32_t) (dblNum * log(dblNum * log(dblNum))) + 1;
+  const uint32_t sieveHalfSize = sieveSize >> 1;
+    /* from Wikipedia bound (Prime-counting_function#Inequalities) with +1
+       for the unused zero index */
+  printf("num = %d, sieveHalfSize = %d\n", num, sieveHalfSize);
+  bool* sieve = NULL;
+  sieve = malloc(sizeof(bool) * sieveHalfSize);
+  if (sieve == NULL)
+  {
+    printf("malloc() failed\n");
+    return;
+  }
+  memset(sieve, false, sieveHalfSize);
+
+  // initialize first two primes
+  uint32_t n = 2;
+  uint32_t s;
+  primes[0] = 2ul;
+  primes[1] = 3ul;
+  for (s = 3; s < sieveSize; s += 6)  // stride 6 since there are no evens
+    sieve[(s + 1) >> 1] = true;
+
+  // find the rest
+  uint64_t val = 5ul;
+  uint64_t val2;
+  while (n < num)
+  {
+    // check the sieve
+    if (!sieve[(val + 1) >> 1])
+    {
+      primes[n] = val;
+      ++n;
+      val2 = val << 1;
+      for (s = val; s < sieveSize; s += val2) // stride 2x since there are no evens
+        sieve[(s + 1) >> 1] = true;
+    }
+    val += 2;  // skip even values
+  }
+
+  free((void *) sieve);
+  primes = NULL;
+
+  return;
+}
+
+/**************************************************************************************************/
+
 int main(int argc, char **argv)
 {
   // parameters
@@ -256,10 +322,11 @@ int main(int argc, char **argv)
   timeSpent = (double) (tEnd - tBegin) / CLOCKS_PER_SEC;
 
   // print select results
-  for (uint32_t n = 0; n < numPrint; ++n)
+  uint32_t n;
+  for (n = 0; n < numPrint; ++n)
     printf("primes[%u] = %lu\n", n, primes[n]);
   printf("...\n");
-  for (uint32_t n = num - numPrint; n < num; ++n)
+  for (n = num - numPrint; n < num; ++n)
     printf("primes[%u] = %lu\n", n, primes[n]);
 
   // clean up memory
