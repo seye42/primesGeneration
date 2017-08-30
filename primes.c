@@ -6,11 +6,20 @@
 #include <string.h>
 #include <time.h>
 
-const uint32_t numPrint = 16;
 
-void algo_0(uint32_t num, uint64_t* primes)
+/* Retired Algorithms
+[0] Brute force, but skipping even numbers -- nearly identical performance to naive approach since
+    the very first trial division by 2 always indicates a composite value
+[1] Variations using double precision floating-point instead of uint64_t integers -- see profile.c
+    for summary results, but double multiplication and division have very comparable operation rates
+    to uint64_t division
+*/
+
+/**************************************************************************************************/
+
+void algo0(uint32_t num, uint64_t* primes)
 {
-  // absolutely naive, brute-force approach
+  printf("ALGORITHM 0: absolutely naive brute force\n");
 
   // variables
   bool comp;
@@ -47,50 +56,11 @@ void algo_0(uint32_t num, uint64_t* primes)
   return;
 }
 
+/**************************************************************************************************/
 
-void algo_1(uint32_t num, uint64_t* primes)
+void algo1(uint32_t num, uint64_t* primes)
 {
-  // slightly smarter than 0: skip the even numbers
-
-  // variables
-  bool comp;
-  uint32_t m;
-
-  // initialize first two primes
-  primes[0] = 2ul;
-  primes[1] = 3ul;
-
-  // find the rest
-  uint64_t val = 5ul;
-
-  uint32_t n = 2;
-  while (n < num)
-  {
-    comp = false;
-    for (m = 1; m < n; ++m)  // skip checking 2
-    {
-      if ((val % primes[m]) == 0ul)
-      {
-        comp = true;
-        break;
-      }
-    }
-
-    if (!comp)
-    {
-      primes[n] = val;
-      ++n;
-    }
-    val += 2ul;  // skip all even values
-  }
-
-  return;
-}
-
-
-void algo_2(uint32_t num, uint64_t* primes)
-{
-  // early termination of check loop based on square roots
+  printf("ALGORITHM 1: smarter trial division with early termination at square root\n");
 
   // variables
   bool comp;
@@ -134,111 +104,11 @@ void algo_2(uint32_t num, uint64_t* primes)
   return;
 }
 
+/**************************************************************************************************/
 
-void algo_2flt(uint32_t num, double* primes)
+void algo2(uint32_t num, uint64_t* primes)
 {
-  // early termination of check loop based on square roots
-  // double precision arithmetic
-
-  // variables
-  bool comp;
-  uint32_t m;
-
-  // initialize first two primes
-  primes[0] = 2.0;
-  primes[1] = 3.0;
-
-  // find the rest
-  double val = 5.0;
-  double root;
-  double ratio;
-
-  uint32_t n = 2;
-  while (n < num)
-  {
-    comp = false;
-    root = sqrt(val);
-    //printf("val: %ld, root: %ld\n", val, root);
-
-    for (m = 1; m < n; ++m)  // skip checking 2
-    {     
-      if (primes[m] > root)  // early termination
-        break;
-      else
-        ratio = val / primes[m];
-        if (floor(ratio) == ratio)
-        {
-          comp = true;
-          break;
-        }
-    }
-
-    if (!comp)
-    {
-      primes[n] = val;
-      ++n;
-    }
-    val += 2.0;  // skip all even values
-  }
-
-  return;
-}
-
-
-void algo_2invflt(uint32_t num, double* primes)
-{
-  // early termination of check loop based on square roots
-  // double precision arithmetic
-  // use of inverses (trial division becomes trial multiplication)
-
-  // variables
-  bool comp;
-  uint32_t m;
-
-  // initialize first two primes
-  primes[0] = 1.0 / 2.0;
-  primes[1] = 1.0 / 3.0;
-
-  // find the rest
-  double val = 5.0;
-  double root;
-  double ratio;
-
-  uint32_t n = 2;
-  while (n < num)
-  {
-    comp = false;
-    root = sqrt(val);
-    //printf("val: %ld, root: %ld\n", val, root);
-
-    for (m = 1; m < n; ++m)  // skip checking 2
-    {     
-      if (primes[m] > root)  // early termination
-        break;
-      else
-        ratio = val * primes[m];
-        if (floor(ratio) == ratio)
-        {
-          comp = true;
-          break;
-        }
-    }
-
-    if (!comp)
-    {
-      primes[n] = 1.0 / val;
-      ++n;
-    }
-    val += 2.0;  // skip all even values
-  }
-
-  return;
-}
-
-
-void algo_3(uint32_t num, uint64_t* primes)
-{
-  // sieve of Eratosthenes
+  printf("ALGORITHM 2: full Sieve of Eratosthenes with bool array memory\n");
 
   // determine the sieve size and allocate the array
   const double dblNum = (double) num;
@@ -286,10 +156,11 @@ void algo_3(uint32_t num, uint64_t* primes)
   return;
 }
 
+/**************************************************************************************************/
 
-void algo_4(uint32_t num, uint64_t* primes)
+void algo3(uint32_t num, uint64_t* primes)
 {
-  // half-size sieve of Eratosthenes
+  printf("ALGORITHM 3: half Sieve of Eratosthenes with bool array memory\n");
 
   // determine the sieve size and allocate the array
   const double dblNum = (double) num;
@@ -338,47 +209,64 @@ void algo_4(uint32_t num, uint64_t* primes)
   return;
 }
 
+/**************************************************************************************************/
+
 int main(int argc, char **argv)
 {
-  if (argc != 2)
+  // parameters
+  const uint32_t numPrint = 8;
+
+  // setup array of function points for all algorithm variants
+  typedef void ALGO_FUNCTION(uint32_t, uint64_t*);
+  ALGO_FUNCTION * algos[4] = {&algo0, &algo1, &algo2, &algo3};
+  const int numAlgs = 4;
+
+  // check input arguments
+  if (argc != 3)
   {
-    printf("usage: '%s <number of primes to generate>'\n", argv[0]);
+    printf("usage: '%s <algorithm index> <number of primes to generate>'\n", argv[0]);
+    return(1);
+  }
+  int algIdx = atoi(argv[1]);
+  if ((algIdx < 0) || (algIdx >= numAlgs))
+  {
+    printf("algorithm index must be on [0, numAlgos - 1]\n");
+    return(1);
+  }
+  ALGO_FUNCTION * func = algos[algIdx];
+  const uint32_t num = atoi(argv[2]);
+
+  // allocate array from primes
+  uint64_t* primes = NULL;
+  primes = malloc(sizeof(uint64_t) * num);
+  if (NULL == primes)
+  {
+    printf("malloc() failed\n");
     return(1);
   }
 
-  const uint32_t num = atoi(argv[1]);
-
-  uint64_t* primes = NULL;
-  primes = malloc(sizeof(uint64_t) * num);
-  //double* primes = NULL;
-  //primes = malloc(sizeof(double) * num);
-  if (primes == NULL)
-  {
-    printf("malloc() failed\n");
-    return(2);
-  }
-
+  // run the algorithm with timing
   clock_t tBegin, tEnd;
   double timeSpent;
   tBegin = clock();
 
-  algo_4(num, primes);
+  (*func)(num, primes);
 
   tEnd = clock();
   timeSpent = (double) (tEnd - tBegin) / CLOCKS_PER_SEC;
 
-  // print results
+  // print select results
   for (uint32_t n = 0; n < numPrint; ++n)
     printf("primes[%u] = %lu\n", n, primes[n]);
-    //printf("primes[%u] = %f\n", n, primes[n]);
   printf("...\n");
   for (uint32_t n = num - numPrint; n < num; ++n)
     printf("primes[%u] = %lu\n", n, primes[n]);
-    //printf("primes[%u] = %f\n", n, primes[n]);
 
+  // clean up memory
   free((void *) primes);
   primes = NULL;
 
+  // report final timing
   printf("time: %0.3f s\n", timeSpent);
   printf("done\n");
   return(0);
