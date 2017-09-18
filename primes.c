@@ -68,7 +68,6 @@ void algo1(uint32_t num, uint64_t* primes)
   // variables
   bool comp;
   uint32_t m;
-  uint64_t root;
 
   // initialize first two primes
   primes[0] = 2ul;
@@ -77,11 +76,18 @@ void algo1(uint32_t num, uint64_t* primes)
   // find the rest
   uint32_t n = 2;
   uint64_t val = 5ul;
+  uint64_t root = 3ul;
+  uint64_t rootSquare = root * root;
   while (n < num)
   {
     comp = false;
-    root = (uint64_t) ceil(sqrt((double) val));
-    //printf("val: %ld, root: %ld\n", val, root);
+    if (rootSquare < val)  // update of root is required
+    {
+      ++root;
+        // this is safe because val increments by two so the root can never increase more than one
+      rootSquare += (root << 1) + 1;
+        // (root + 1)^2 = root^2 + 2*root + 1
+    }
     for (m = 1; m < n; ++m)  // skip checking 2 since all evens are skipped
     {
       if (primes[m] > root)  // early termination
@@ -181,11 +187,11 @@ void algo3(uint32_t num, uint64_t* primes)
 
   // initialize first two primes
   uint32_t n = 2;
-  uint32_t s;
+  uint64_t s;
   primes[0] = 2ul;
   primes[1] = 3ul;
-  for (s = 3; s < sieveSize; s += 6)  // stride 6 since there are no evens
-    sieve[(s + 1) >> 1] = true;
+  for (s = 3ul; s < sieveSize; s += 6ul)  // stride 6 since there are no evens
+    sieve[(s + 1ul) >> 1] = true;
 
   // find the rest
   uint64_t val = 5ul;
@@ -193,7 +199,7 @@ void algo3(uint32_t num, uint64_t* primes)
   while (n < num)
   {
     // check the sieve
-    if (!sieve[(val + 1) >> 1])
+    if (!sieve[(val + 1ul) >> 1])
     {
       primes[n] = val;
       ++n;
@@ -201,7 +207,7 @@ void algo3(uint32_t num, uint64_t* primes)
       for (s = val; s < sieveSize; s += val2) // stride 2x since there are no evens
         sieve[(s + 1) >> 1] = true;
     }
-    val += 2;  // skip even values
+    val += 2ul;  // skip even values
   }
 
   free((void *) sieve);
@@ -212,14 +218,16 @@ void algo3(uint32_t num, uint64_t* primes)
 
 /**************************************************************************************************/
 
-inline uint8_t getBit(uint8_t* mem, uint64_t addr)
+inline uint8_t getBit(uint8_t* mem, uint64_t bitNum)
 {
-  return(mem[addr >> 3] & (addr & 0x03));
+  uint8_t val = mem[bitNum >> 3];
+  val >>= bitNum & 0x07;
+  return(val & 0x01);
 }
 
-inline void setBit(uint8_t* mem, uint64_t addr)
+inline void setBit(uint8_t* mem, uint64_t bitNum)
 {
-  mem[addr >> 3] |= 1 << (addr & 0x03);
+  mem[bitNum >> 3] |= 1 << (bitNum & 0x07);
   return;
 }
 
@@ -228,29 +236,32 @@ void algo4(uint32_t num, uint64_t* primes)
   printf("ALGORITHM 4: half Sieve of Eratosthenes with bit field memory\n");
 
   // determine the sieve size and allocate the array
-  // RESUME HERE
   const double dblNum = (double) num;
-  const uint32_t sieveSize = (uint32_t) (dblNum * log(dblNum * log(dblNum))) + 1;
-  const uint32_t sieveHalfSize = sieveSize >> 1;
+  const uint32_t sieveSizeBits = (uint32_t) (dblNum * log(dblNum * log(dblNum))) + 1;
+  const uint32_t sieveHalfSizeBits = sieveSizeBits >> 1;
     /* from Wikipedia bound (Prime-counting_function#Inequalities) with +1
        for the unused zero index */
-  printf("num = %d, sieveHalfSize = %d\n", num, sieveHalfSize);
-  bool* sieve = NULL;
-  sieve = malloc(sizeof(bool) * sieveHalfSize);
+  uint32_t sieveHalfSizeBytes = sieveHalfSizeBits >> 3;
+  if (sieveHalfSizeBits & 0x03)
+    ++sieveHalfSizeBytes;
+  printf("num = %d, sieveHalfSizeBits = %d, sieveHalfSizeBytes = %d\n",
+         num, sieveHalfSizeBits, sieveHalfSizeBytes);
+  uint8_t* sieve = NULL;
+  sieve = malloc(sizeof(uint8_t) * sieveHalfSizeBytes);
   if (sieve == NULL)
   {
     printf("malloc() failed\n");
     return;
   }
-  memset(sieve, false, sieveHalfSize);
+  memset(sieve, 0, sieveHalfSizeBytes);
 
   // initialize first two primes
   uint32_t n = 2;
-  uint32_t s;
+  uint64_t s;
   primes[0] = 2ul;
   primes[1] = 3ul;
-  for (s = 3; s < sieveSize; s += 6)  // stride 6 since there are no evens
-    sieve[(s + 1) >> 1] = true;
+  for (s = 3ul; s < sieveSizeBits; s += 6ul)  // stride 6 since there are no evens
+    setBit(sieve, (s + 1ul) >> 1);
 
   // find the rest
   uint64_t val = 5ul;
@@ -258,15 +269,15 @@ void algo4(uint32_t num, uint64_t* primes)
   while (n < num)
   {
     // check the sieve
-    if (!sieve[(val + 1) >> 1])
+    if (!getBit(sieve, (val + 1ul) >> 1))
     {
       primes[n] = val;
       ++n;
       val2 = val << 1;
-      for (s = val; s < sieveSize; s += val2) // stride 2x since there are no evens
-        sieve[(s + 1) >> 1] = true;
+      for (s = val; s < sieveSizeBits; s += val2) // stride 2x since there are no evens
+        setBit(sieve, (s + 1ul) >> 1);
     }
-    val += 2;  // skip even values
+    val += 2ul;  // skip even values
   }
 
   free((void *) sieve);
@@ -284,8 +295,8 @@ int main(int argc, char **argv)
 
   // setup array of function points for all algorithm variants
   typedef void ALGO_FUNCTION(uint32_t, uint64_t*);
-  ALGO_FUNCTION * algos[4] = {&algo0, &algo1, &algo2, &algo3};
-  const int numAlgs = 4;
+  ALGO_FUNCTION * algos[5] = {&algo0, &algo1, &algo2, &algo3, &algo4};
+  const int numAlgs = 5;
 
   // check input arguments
   if (argc != 3)
