@@ -218,16 +218,16 @@ void algo3(uint32_t num, uint64_t* primes)
 
 /**************************************************************************************************/
 
-inline uint8_t getBit(uint8_t* mem, uint64_t bitNum)
+inline bool getBit(uint64_t* mem, uint64_t bitNum)
 {
-  uint8_t val = mem[bitNum >> 3];
-  val >>= bitNum & 0x07;
-  return(val & 0x01);
+  uint64_t val = mem[bitNum >> 6];
+  val >>= bitNum & 0x3F;
+  return(val & 0x1);
 }
 
-inline void setBit(uint8_t* mem, uint64_t bitNum)
+inline void setBit(uint64_t* mem, uint64_t bitNum)
 {
-  mem[bitNum >> 3] |= 1 << (bitNum & 0x07);
+  mem[bitNum >> 6] |= 1ul << (bitNum & 0x3F);
   return;
 }
 
@@ -241,19 +241,19 @@ void algo4(uint32_t num, uint64_t* primes)
   const uint32_t sieveHalfSizeBits = sieveSizeBits >> 1;
     /* from Wikipedia bound (Prime-counting_function#Inequalities) with +1
        for the unused zero index */
-  uint32_t sieveHalfSizeBytes = sieveHalfSizeBits >> 3;
-  if (sieveHalfSizeBits & 0x03)
-    ++sieveHalfSizeBytes;
-  printf("num = %d, sieveHalfSizeBits = %d, sieveHalfSizeBytes = %d\n",
-         num, sieveHalfSizeBits, sieveHalfSizeBytes);
-  uint8_t* sieve = NULL;
-  sieve = malloc(sizeof(uint8_t) * sieveHalfSizeBytes);
+  uint32_t sieveHalfSizeWords = sieveHalfSizeBits >> 6;
+  if (sieveHalfSizeBits & 0x3F)
+    ++sieveHalfSizeWords;
+  printf("num = %d, sieveHalfSizeBits = %d, sieveHalfSizeWords = %d\n",
+         num, sieveHalfSizeBits, sieveHalfSizeWords);
+  uint64_t* sieve = NULL;
+  sieve = malloc(sizeof(uint64_t) * sieveHalfSizeWords);
   if (sieve == NULL)
   {
     printf("malloc() failed\n");
     return;
   }
-  memset(sieve, 0, sieveHalfSizeBytes);
+  memset(sieve, 0, sieveHalfSizeWords * sizeof(uint64_t));
 
   // initialize first two primes
   uint32_t n = 2;
