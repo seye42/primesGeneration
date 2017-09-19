@@ -204,7 +204,7 @@ void algo3(uint32_t num, uint64_t* primes)
       primes[n] = val;
       ++n;
       val2 = val << 1;
-      for (s = val; s < sieveSize; s += val2) // stride 2x since there are no evens
+      for (s = val + val2; s < sieveSize; s += val2) // stride 2x since there are no evens
         sieve[(s + 1) >> 1] = true;
     }
     val += 2ul;  // skip even values
@@ -260,25 +260,28 @@ void algo4(uint32_t num, uint64_t* primes)
   uint64_t s;
   primes[0] = 2ul;
   primes[1] = 3ul;
-  for (s = 3ul; s < sieveSizeBits; s += 6ul)  // stride 6 since there are no evens
-    setBit(sieve, (s + 1ul) >> 1);
+  for (s = 2ul; s < sieveHalfSizeBits; s += 3ul)  // stride 6 since there are no evens
+    setBit(sieve, s);
 
   // find the rest
-  uint64_t val = 5ul;
-  uint64_t val2;
+  uint64_t idx = 3ul;  // val = 5ul
+  uint64_t val;
   while (n < num)
   {
     // check the sieve
-    if (!getBit(sieve, (val + 1ul) >> 1))
+    if (!getBit(sieve, idx))
     {
+      val = (idx << 1) - 1ul;
       primes[n] = val;
       ++n;
-      val2 = val << 1;
-      for (s = val; s < sieveSizeBits; s += val2) // stride 2x since there are no evens
-        setBit(sieve, (s + 1ul) >> 1);
+      for (s = (3ul * val + 1ul) >> 1; s < sieveHalfSizeBits; s += val)
+        setBit(sieve, s);
     }
-    val += 2ul;  // skip even values
+    ++idx;
   }
+    // key relationships for mapping between the actual number values and sieve bit indices:
+    // idx(val) = (val + 1) >> 1
+    // val(idx) = (idx << 1) + 1
 
   free((void *) sieve);
   primes = NULL;
