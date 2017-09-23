@@ -291,6 +291,80 @@ void algo4(uint32_t num, uint64_t* primes)
 
 /**************************************************************************************************/
 
+void algo5(uint32_t num, uint64_t* primes)
+{
+  printf("ALGORITHM 5: third Sieve of Eratosthenes with bit field memory\n");
+
+  // determine the sieve size and allocate the array
+  const double dblNum = (double) num;
+  const uint32_t sieveSizeBits = (uint32_t) (dblNum * log(dblNum * log(dblNum))) + 1;
+  const uint32_t sieveThirdSizeBits = sieveSizeBits / 3;
+    /* from Wikipedia bound (Prime-counting_function#Inequalities) with +1
+       for the unused zero index */
+  uint32_t sieveThirdSizeWords = sieveThirdSizeBits >> 6;
+  if (sieveThirdSizeBits % 3)
+    ++sieveThirdSizeWords;
+  printf("num = %d, sieveThirdSizeBits = %d, sieveThirdSizeWords = %d\n",
+         num, sieveThirdSizeBits, sieveThirdSizeWords);
+  uint64_t* sieve = NULL;
+  sieve = malloc(sizeof(uint64_t) * sieveThirdSizeWords);
+  if (sieve == NULL)
+  {
+    printf("malloc() failed\n");
+    return;
+  }
+  memset(sieve, 0, sieveThirdSizeWords * sizeof(uint64_t));
+
+  // initialize first two primes
+  uint32_t n = 2;
+  uint64_t s;
+  primes[0] = 2ul;
+  primes[1] = 3ul;
+
+  // find the rest
+  uint64_t idx = 1ul;  // val = 5ul
+  uint64_t val;
+  bool isOdd, useA;
+  uint64_t strideA, strideB;
+  while (n < num)
+  {
+    // check the sieve
+    if (!getBit(sieve, idx))
+    {
+      isOdd = idx & 1;
+      val = 3u * idx + ((isOdd) ? 2ul : 1ul);
+      primes[n] = val;
+      ++n;  
+      
+      strideA = (val << 1) / 3u + ((isOdd) ? 0ul : 1ul);
+      strideB = (val << 2) / 3u + ((isOdd) ? 1ul : 0ul);
+      
+      //printf("val = %lu, init = %lu, strideA = %lu, strideB = %lu, idx = %lu\n",
+      //       val, 5u * val / 3u, strideA, strideB, idx);
+      useA = true;
+      for (s = (5u * val / 3u); s < sieveThirdSizeBits; )
+      {
+        //printf("  setting idx %lu\n", s);
+        setBit(sieve, s);
+        s += (useA) ? strideA : strideB;
+        useA = !useA;
+      }
+    }
+    ++idx;
+  }
+    // UPDATE THESE
+    // key relationships for mapping between the actual number values and sieve bit indices:
+    // idx(val) = (val + 1) >> 1
+    // val(idx) = (idx << 1) + 1
+
+  free((void *) sieve);
+  primes = NULL;
+
+  return;
+}
+
+/**************************************************************************************************/
+
 int main(int argc, char **argv)
 {
   // parameters
@@ -298,8 +372,8 @@ int main(int argc, char **argv)
 
   // setup array of function points for all algorithm variants
   typedef void ALGO_FUNCTION(uint32_t, uint64_t*);
-  ALGO_FUNCTION * algos[5] = {&algo0, &algo1, &algo2, &algo3, &algo4};
-  const int numAlgs = 5;
+  ALGO_FUNCTION * algos[6] = {&algo0, &algo1, &algo2, &algo3, &algo4, &algo5};
+  const int numAlgs = 6;
 
   // check input arguments
   if (argc != 3)
